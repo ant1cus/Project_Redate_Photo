@@ -23,7 +23,7 @@ class MainWindow(QMainWindow, Main.Ui_MainWindow):  # Главное окно
         os.makedirs(pathlib.Path('logs'), exist_ok=True)
         filemode = 'a' if pathlib.Path('logs', filename).is_file() else 'w'
         logging.basicConfig(filename=pathlib.Path('logs', filename),
-                            level=logging.DEBUG,
+                            level=logging.INFO,
                             filemode=filemode,
                             format="%(asctime)s - %(levelname)s - %(funcName)s: %(lineno)d - %(message)s")
         self.pushButton_path_folder.clicked.connect((lambda: self.browse(self.lineEdit_path_folder)))
