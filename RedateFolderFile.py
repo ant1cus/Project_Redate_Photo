@@ -53,6 +53,8 @@ class RedateDirAndFile(QThread):
                 self.folder_tree(pathlib.Path(path, obj))
                 change_date(pathlib.Path(path, obj), date)
             else:
+                if obj.startswith('.'):
+                    continue
                 try:
                     self.change_file(pathlib.Path(path, obj))
                 except BaseException as exc:
@@ -66,8 +68,8 @@ class RedateDirAndFile(QThread):
         sum_time = False
         time_file = []
         time = '08:10:15'
-        exif = f'{str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe'))} {str(path)}'
-        if path.name.endswith('.tif'):
+        exif = f"{str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe'))} {str(path)}"
+        if path.name.endswith('.tif') or path.name.endswith('.tiff'):
             self.logging.info(f"Файл типа tif")
             file = subprocess.run(exif, capture_output=True, text=True)
             for property in file.stdout.split('\n'):
@@ -80,13 +82,14 @@ class RedateDirAndFile(QThread):
                         if '.' in str_time:
                             str_time = str_time.rpartition('.')[0]
                         time_file.append(str(datetime.datetime.strptime(str_time, '%Y:%m:%d %H:%M:%S').time()))
-            time = min(time_file)
+            if time_file:
+                time = min(time_file)
             sum_time = str(self.start_date) + ' ' + str(time)
             self.logging.info(f"Меняем время, если есть. Time - {sum_time}")
             if sum_time:
-                exif = f'{str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe'))} -DateTimeOriginal="{sum_time}" -CreateDate="{sum_time}" {str(path)}'
+                exif = str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe')) + ' -ModifyDate="' + sum_time + '" -DateTimeOriginal="' + sum_time + '" -CreateDate="' + sum_time + '" ' + str(path)
                 subprocess.run(exif)
-            del_file = [file for file in os.listdir(path.parent) if file.endswith('.tif_original')]
+            del_file = [file for file in os.listdir(path.parent) if file.endswith('_original')]
             if del_file:
                 for file in del_file:
                     os.remove(pathlib.Path(path.parent, file))
@@ -99,7 +102,8 @@ class RedateDirAndFile(QThread):
                     time_file.append(str(datetime.datetime.strptime(image.datetime_original, '%Y:%m:%d %H:%M:%S').time()))
                     time_file.append(str(datetime.datetime.strptime(image.datetime_digitized, '%Y:%m:%d %H:%M:%S').time()))
                     time_file.append(str(datetime.datetime.strptime(image.datetime, '%Y:%m:%d %H:%M:%S').time()))
-                    time = min(time_file)
+                    if time_file:
+                        time = min(time_file)
                     sum_time = str(self.start_date) + ' ' + str(time)
                     self.logging.info(f"Меняем время, если есть. Time - {sum_time}")
                     image.datetime_original = sum_time
@@ -109,8 +113,8 @@ class RedateDirAndFile(QThread):
                         write_file.write(image.get_file())
                 else:
                     self.error_text.append(f"У файла {path} нет exif данных")
-        date = self.get_date(path)
-        change_date(path, date)
+        # date = self.get_date(path)
+        change_date(path, sum_time)
         self.progress_val += self.percent
         self.progress.emit(self.progress_val)
         self.logging.info(f"Закончили менять время")
@@ -132,6 +136,8 @@ class RedateDirAndFile(QThread):
                     self.button.setText('Старт')
                     self.logging.info('----------------Прервано redate_file_and_photo----------------')
                     return
+                if folder.startswith('.'):
+                    continue
                 if os.path.isdir(pathlib.Path(self.folder, folder)):
                     date = self.get_date(pathlib.Path(self.folder, folder))
                     self.folder_tree(pathlib.Path(self.folder, folder))
