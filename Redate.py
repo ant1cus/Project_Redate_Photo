@@ -5,6 +5,7 @@ import pathlib
 import queue
 import sys
 import traceback
+import time
 
 import Main
 import logging
@@ -117,6 +118,7 @@ class MainWindow(QMainWindow, Main.Ui_MainWindow):  # Главное окно
         elif title == 'Вопрос?':
             self.statusBar().clearMessage()
             ans = QMessageBox.question(self, title, description, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            time.sleep(1)
             if ans == QMessageBox.No:
                 self.thread.queue.put(True)
             else:
