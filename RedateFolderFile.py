@@ -59,6 +59,10 @@ class RedateDirAndFile(QThread):
                     return {'error': True, 'message': 'abort'}
                 change_date(pathlib.Path(path, obj), date)
             else:
+                format_file = obj.rpartition('.')[2]
+                if format_file.lower() not in ['tif', 'tiff', 'jpeg', 'jpg', 'png']:
+                    self.logging.info(f'Формат файла {obj} не подходит под указанные, пропускаем')
+                    continue
                 try:
                     answer = self.change_file(pathlib.Path(path, obj))
                     if answer['error']:
@@ -79,9 +83,9 @@ class RedateDirAndFile(QThread):
             return {'error': True, 'message': 'abort'}
         self.logging.info(f"Изменяем время в файле {path.name} (папка {path})")
         self.status.emit(f"Изменяем время в файле {path.name} (папка {os.path.basename(path.parent)})")
-        sum_time = False
         time_file = []
         time = '08:10:15'
+        sum_time = str(self.start_date) + ' ' + str(time)
         old_name = path.name
         name = path.name
         if ' ' in path.name:
@@ -106,9 +110,8 @@ class RedateDirAndFile(QThread):
                 time = min(time_file)
             sum_time = str(self.start_date) + ' ' + str(time)
             self.logging.info(f"Меняем время, если есть. Time - {sum_time}")
-            if sum_time:
-                exif = str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe')) + ' -ModifyDate="' + sum_time + '" -DateTimeOriginal="' + sum_time + '" -CreateDate="' + sum_time + '" ' + str(redate_file)
-                subprocess.run(exif)
+            exif = str(pathlib.Path(self.default_path, 'exiftool', 'exiftool.exe')) + ' -ModifyDate="' + sum_time + '" -DateTimeOriginal="' + sum_time + '" -CreateDate="' + sum_time + '" ' + str(redate_file)
+            subprocess.run(exif)
             del_file = [file for file in os.listdir(path.parent) if file.endswith('_original')]
             if del_file:
                 for file in del_file:
@@ -131,7 +134,7 @@ class RedateDirAndFile(QThread):
                     with open(path, 'wb') as write_file:
                         write_file.write(image.get_file())
                 else:
-                    self.error_text.append(f"У файла {path} нет exif данных")
+                    self.error_text.append(f"У файла {path.name} ({os.path.basename(path.parent)}) нет exif данных")
         # date = self.get_date(path)
         if name != old_name:
             os.rename(redate_file, pathlib.Path(path.parent, old_name))
@@ -179,6 +182,10 @@ class RedateDirAndFile(QThread):
                              + datetime.timedelta(days=1)).date(), '%Y:%m:%d')
                 else:
                     try:
+                        format_file = folder.rpartition('.')[2]
+                        if format_file.lower() not in ['tif', 'tiff', 'jpeg', 'jpg', 'png']:
+                            self.logging.info(f'Формат файла {folder} не подходит под указанные, пропускаем')
+                            continue
                         answer = self.change_file(pathlib.Path(self.folder, folder))
                         if answer['error']:
                             return
@@ -188,8 +195,9 @@ class RedateDirAndFile(QThread):
                         self.logging.info('-------------------------------------------')
             if self.error_text:
                 self.logging.info("Выводим ошибки")
+                self.logging.warning(self.error_text)
                 self.status.emit('Готово с ошибками')
-                self.queue.put({'errors': self.error_text})
+                self.queue.put({'errors': ['У некоторых файлов не было exif данных']})
                 self.errors.emit()
             else:
                 self.logging.info("----------------Конец работы программы----------------")
